@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+ 
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+ 
+        body {
+            margin: 0;
+        }
+ 
+        .main {
+            position: relative;
+        }
+ 
+        .item {
+            position: absolute;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 0;
+            transition: left .3s, top .3s, transform .3s;
+            /* 动画属性 */
+        }
+ 
+        /* 如果被压在底下的颜色  应该是一种灰色 */
+        .item:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: background-color .2s;
+            /* 被遮蔽的卡片 在出现的时候  以动画的形式 */
+        }
+ 
+        /* 这个是为了   当配够  有disabled 属性的时候 就会透明掉 */
+        .disabled:after {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+ 
+        /* 然后  给我们的这个 消除的展示框配置一下   里面最多能放6个 */
+        .move-list {
+            border: 1px solid #ddd;
+            background-color: #ddd;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+ 
+<body>
+    <!-- 卡牌框 -->
+    <div class="main"></div>
+    <!-- 消除展示框 -->
+    <div class="move-list"></div>
+</body>
+<script>
+    const simpleData = [
+        { name: '毛', color: '#ff1100' },
+        { name: '秀', color: '#ff8800' },
+        { name: '丽', color: 'green' },
+        { name: '屈', color: '#779922' },
+        { name: '凡', color: 'blue' },
+        { name: '啦', color: '#335577' },
+        { name: '你', color: 'lightblue' },
+        { name: '👂', color: 'lightblue' }
+    ]
+    //卡片大小
+    const size = 50
+    //行
+    const rows = 10
+    //列
+    const cols = 10
+    //3个一消除
+    const oneGroupCount = 3
+    //每个消除有6组
+    const group = 6
+    //总共6层
+    const layerCount = 6
+    //储存数据的数组
+    const cellHtml = []
+    //整理
+    const renderData = Array.from(new Array(oneGroupCount * group)).map(v => {
+        return simpleData.map(v => ({ ...v }))
+    }).flat().sort(v => Math.random() - 0.5)  //加上flat是为了把二维的拉成一维的   //最后用随机数打乱一下 
+ 
+    // console.log(renderData)
+    //以上简单地准备了我们所要用的数据
+ 
+    //第一步画表格
+    //先绘制  最上面一层    然后  从顶层到底层绘制  进行行和列的 数据循环
+    for (let ly = layerCount - 1; ly >= 0; ly--) {
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                let pyStep = (ly + 1) % 2 === 0 ? size / 2 : 0   //给偏移量和不给偏移量  实现错开的效果
+ 
+                //进行  图层的渲染   id 是必要的   这个定义了 第几层ly 第几行 i 第几列j  可以判断这个卡片有没有被盖住
+                //最终  我们会以绝对定位的方式 进行 布局
+                //整个随机数
+                let item = (Math.random() > 0.7 && renderData.pop())  //取完随机数  然后用pop  随用 随删  直到没有为止
+                // if (item) {
+                //     cellHtml.push(`<div class="item" id="m${ly}-${i}-${j}"
+                //     style="width:${size}px;height:${size}px;left:${size * j + pyStep}px;top:${size * i + pyStep}px;
+                //      background-color:${item.color}">${item.name}</div>`)
+                // }
+ 
+                item && cellHtml.push(`<div class="item" onclick="move(this)" id="m${ly}-${i}-${j}"
+                    style="width:${size}px;height:${size}px;left:${size * j + pyStep}px;top:${size * i + pyStep}px;
+                     background-color:${item.color}">${item.name}</div>`)
+ 
+            }
+        }
+    }
+    const main = document.querySelector('.main')
+    const moveList = document.querySelector('.move-list')
+ 
+    main.innerHTML = cellHtml.reverse().join('') //用reverse反转一下  主要是为了能够从上往下绘制
+    //设置一下容器的宽高
+    main.style.height = `${size * rows + size * 2}px`
+    //容器的高可以 多给一点  为了能够容下  我们消除的展示框
+    main.style.width = `${size * cols} px`
+    moveList.style.height = `${size}px`
+    moveList.style.width = `${size * 6}px`
+    // -------------------------------------------------截至以上  我就完成  初步的页面
+    //------------接下来进行计算  计算出被遮住的底牌  并且标注暗色
+    /* const checkDisabled = () => {
+        main.querySelectorAll('.item').forEach((v, i) => {
+            console.log(v);
+            //处理格子
+            const arr = v.id.substring(1).split('-').map(v => Number(v))
+            const isPy = (arr[0] + 1) % 2 === 0
+            for (let i = arr[0] + 1; i <= layerCount - 1; i++) {
+                const isPyB = (i + 1) % 2 === 0
+                if (isPy === isPyB) {
+                    const el = main.querySelector(`#m${i}-${arr[1]}-${arr[2]}`)
+                    if (el) {  //如果el存在就是被遮盖了
+                        v.classList.add("disabled")
+                        break//找到  就不往下找了
+                    } else if (isPy && !isPyB) {//本身是2-4-6当对比对象是1-3-5的情况
+                        if (![
+                            `${i}-${arr[1]}-${arr[2]}`,
+                            `${i}-${arr[1]}-${arr[2] + 1}`,
+                            `${i}-${arr[1] + 1}-${arr[2]}`,
+                            `${i}-${arr[1] + 1}-${arr[2] + 1}` //加1是 偏移量
+                        ].every(k => {
+                            return !main.querySelector('#m' + k)
+                        })) {
+ 
+                            v.classList.add("disabled")
+                            break
+                        } else {
+                            v.classList.remove("disabled")
+                        }
+ 
+                    } else if (!isPy && isPyB) {//本身是1-3-5当对比对象是2-4-6的情况
+                        if (![
+                            `${i}-${arr[1]}-${arr[2]}`,
+                            `${i}-${arr[1]}-${arr[2] - 1}`,
+                            `${i}-${arr[1] - 1}-${arr[2]}`,
+                            `${i}-${arr[1] - 1}-${arr[2] - 1}`   //加1是 偏移量
+                        ].every(k => {
+                            return !main.querySelector('#m' + k)
+                        })) {
+                            v.classList.add("disabled")
+                            break;
+                        } else {
+                            v.classList.remove("disabled")
+                        }
+                    }
+                }
+            }
+        })
+    } */
+    //将上面整理  如下：
+    const checkDisabled = (items) => {
+        (items || main.querySelectorAll('.item')).forEach((v, i) => {
+            const arr = v.id.substring(1).split('-').map(v => Number(v))
+            const isPy = (arr[0] + 1) % 2 === 0
+            for (let i = arr[0] + 1; i <= layerCount - 1; i++) {
+                const isPyB = (i + 1) % 2 === 0
+                if (isPy === isPyB) {
+                    const el = main.querySelector(`#m${i}-${arr[1]}-${arr[2]}`)
+                    if (el) {
+                        v.classList.add('disabled')
+ 
+                        break;
+                    }
+                } else if (isPy && !isPyB) {
+                    if (![
+                        `${i}-${arr[1]}-${arr[2]}`,
+                        `${i}-${arr[1]}-${arr[2] + 1}`,
+                        `${i}-${arr[1] + 1}-${arr[2]}`,
+                        `${i}-${arr[1] + 1}-${arr[2] + 1}`
+                    ].every(k => {
+                        return !main.querySelector('#m' + k)
+                    })) {
+                        v.classList.add('disabled')
+                        break;
+                    } else {
+                        v.classList.remove('disabled')
+                    }
+ 
+                } else if (!isPy && isPyB) {
+                    if (![
+                        `${i}-${arr[1]}-${arr[2]}`,
+                        `${i}-${arr[1]}-${arr[2] - 1}`,
+                        `${i}-${arr[1] - 1}-${arr[2]}`,
+                        `${i}-${arr[1] - 1}-${arr[2] - 1}`
+                    ].every(k => {
+                        return !main.querySelector('#m' + k)
+                    })) {
+                        v.classList.add('disabled')
+                        break;
+                    } else {
+                        v.classList.remove('disabled')
+                    }
+ 
+                }
+            }
+        })
+    }
+    let canMove = true
+ 
+    //第三步   点击卡片进行消除计算
+    let move = (me) => {
+        console.log(121212121);
+        let left = moveList.offsetLeft  //
+        let top = moveList.offsetTop    //
+        if (!canMove || me.className.indexOf('disabled') >= 0) {
+            return   //点击被禁用的  仍然也没有反应
+        }
+        canMove = false
+        if (moveList.children.length > 0) { //这个是用来判断  当下面消除框中有元素了 
+            let el = moveList.lastElementChild
+            left = el.offsetLeft + size    //有元素以后  就偏移
+        }
+        me.style.top = `${top}px`
+        me.style.left = `${left}px`  //到这为止  就可以飘下去了  但是只能飘一个   因为我们有canMove这个节流
+        //但是  我们让飘下去 以后 也要将节点转移下去
+        me.transitionNamesCount = 0  //计数
+        me.ontransitionend = (e) => {
+            me.transitionNamesCount++
+            if (me.transitionNamesCount === 2) {  //这里定义2  是因为 我们上面css中定义的动画 来看left  和  top 都有   点一下  就执行了两次这个动画  因此  这里判断一下2次
+                moveEnd(me)
+                canMove = true     //从这以后  就可以随便点了
+            }
+        }
+    }
+    const moveEnd = (me) => {
+        me.ontransitionend = null
+        me.setAttribute('onclick', '')
+        moveList.appendChild(me)  //这就把上面的节点转移到下边来了
+        const findResult = [...moveList.children].filter(v => v.innerHTML === me.innerHTML)
+        if (findResult.length === 3) {
+            findResult.forEach(v => {
+                v.ontransitionend = () => {
+                    moveList.removeChild(v); //动画完了以后 清除元素   但是  这样虽然清除了 元素  元素不能自动归位
+                    [...moveList.children].forEach((v, i) => {
+                        v.style.left = `${i * size + moveList.offsetLeft}px`
+                    })
+                    //失败的规则
+                    // if (moveList.children.length === 6) {
+                    //     alert('失败')
+                    //     return location.reload()
+                    // } else if (main.children.length === 0) {
+                    //     return alert('恭喜通关')
+                    // }
+                }
+                setTimeout(() => v.style.transform = 'scale(0)') //动画消除
+            })
+        }
+        setTimeout(() => {
+            if (moveList.children.length === 6) {
+                alert('池子已满，游戏结束')
+                return location.reload()
+            } else if (main.children.length === 0) {
+                alert('恭喜通关')
+                return location.reload()
+            }
+        }, 100)
+        checkDisabled()   //这个重新掉用是为了能够 在卡片飘下来以后  被压的卡片  颜色变成正常
+    }
+    checkDisabled()
+ 
+</script>
+ 
+</html>
